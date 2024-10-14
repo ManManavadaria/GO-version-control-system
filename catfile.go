@@ -5,13 +5,10 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 )
 
-func CatfileFunc() (string, error) {
-	if len(os.Args) < 3 {
-		return "", fmt.Errorf("invalid arguments, SHA missing.")
-	}
-	sha := os.Args[2]
+func CatfileFunc(sha string) (string, error) {
 
 	filepath := fmt.Sprintf(".go-vcs/objects/%v/%v", sha[0:2], sha[2:])
 
@@ -32,5 +29,7 @@ func CatfileFunc() (string, error) {
 		return "", fmt.Errorf("error reading file content: %v", err)
 	}
 
-	return string(s), nil
+	str := string(s)
+
+	return str[strings.Index(str, "\x00")+1:], nil
 }

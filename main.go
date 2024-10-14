@@ -23,7 +23,14 @@ func main() {
 		fmt.Fprintf(os.Stderr, "\033[32m%v\033[0m\n", msg)
 
 	case "cat-file":
-		out, err := CatfileFunc()
+		if len(os.Args) < 3 {
+			fmt.Fprintf(os.Stderr, "\033[31m%s\033[0m\n", "invalid arguments, SHA missing.")
+			os.Exit(1)
+		}
+
+		sha := os.Args[2]
+
+		out, err := CatfileFunc(sha)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "\033[31m%s\033[0m\n", err)
 			os.Exit(1)
@@ -37,6 +44,80 @@ func main() {
 			os.Exit(1)
 		}
 		fmt.Fprintf(os.Stdout, "\033[32m%s\033[0m\n", hash)
+
+		return
+	case "ls-tree":
+		if len(os.Args) < 3 {
+			fmt.Fprintf(os.Stderr, "\033[31m%s\033[0m\n", "invalid arguments, SHA missing.")
+			os.Exit(1)
+		}
+
+		var hash string
+		var paths []string
+		var additional string
+
+		if len(os.Args) == 3 {
+			if os.Args[2] == "HEAD" {
+				hash = FetchLatestCommitHash()
+			} else {
+				if len(os.Args[2]) == 40 {
+					hash = os.Args[2]
+				} else {
+					fmt.Fprintf(os.Stderr, "\033[31m%s\033[0m\n", "invalid arguments")
+					os.Exit(1)
+				}
+			}
+		} else {
+		loop:
+			for i, arg := range os.Args {
+				if i > 1 {
+					switch arg {
+					case "HEAD":
+						hash = FetchLatestCommitHash()
+						paths = append(paths, os.Args[i+1:]...)
+						break loop
+					case "--name-only":
+						additional = arg
+						continue
+					default:
+						if len(arg) == 40 {
+							hash = arg
+							paths = append(paths, os.Args[i+1:]...)
+							break loop
+						} else {
+							fmt.Fprintf(os.Stderr, "\033[31m%s\033[0m\n", "invalid arguments")
+							os.Exit(1)
+						}
+					}
+				}
+			}
+		}
+
+		// fmt.Println(hash)
+		// fmt.Println(paths)
+		// fmt.Println(additional)
+
+		file, err := CatfileFunc(hash)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "\033[31m%s\033[0m\n", err)
+			os.Exit(1)
+		}
+
+		treeHash, err := treeExtractor(file)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "\033[31m%s\033[0m\n", err)
+			os.Exit(1)
+		}
+
+		out, err := CatfileFunc(treeHash)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "\033[31m%s\033[0m\n", err)
+			os.Exit(1)
+		}
+
+		data := parseTreeObject([]byte(out), additional)
+
+		fmt.Fprintf(os.Stdout, "\033[32m%s\033[0m\n", data)
 
 		return
 	default:
