@@ -14,6 +14,9 @@ func main() {
 	}
 
 	switch cmd := os.Args[1]; cmd {
+	case "--version":
+		fmt.Fprintf(os.Stderr, "go-vcs version 0.0.1")
+		os.Exit(1)
 	case "init":
 		msg, err := InitFunc()
 		if err != nil {

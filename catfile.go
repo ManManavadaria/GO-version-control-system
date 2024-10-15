@@ -5,14 +5,15 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
 func CatfileFunc(sha string) (string, error) {
 
-	filepath := fmt.Sprintf(".go-vcs/objects/%v/%v", sha[0:2], sha[2:])
+	filePath := fmt.Sprintf(".go-vcs/objects/%v/%v/", sha[0:2], sha[2:])
 
-	file, err := os.Open(filepath)
+	file, err := os.Open(filepath.Dir(filePath))
 	if err != nil {
 		return "", fmt.Errorf("error opening file: %v", err)
 	}
@@ -31,5 +32,5 @@ func CatfileFunc(sha string) (string, error) {
 
 	str := string(s)
 
-	return str[strings.Index(str, "\x00")+1:], nil
+	return str[strings.Index(str, "\x00"):], nil
 }

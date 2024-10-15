@@ -10,9 +10,12 @@ import (
 func treeExtractor(data string) (string, error) {
 	var hash string
 	var IsTreeObject bool = false
-	fmt.Println("data == >", data)
 
-	words := strings.Split(data, " ")
+	str, ok := strings.CutPrefix(data, "\x00")
+	if !ok {
+		return "", fmt.Errorf("fatal: not a tree object")
+	}
+	words := strings.Split(strings.Split(strings.TrimSpace(str), "\n")[0], " ")
 
 	for i, word := range words {
 		if strings.Compare(word, "tree") == 0 {
