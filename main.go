@@ -41,7 +41,12 @@ func main() {
 		fmt.Fprintf(os.Stdout, "\033[32m%s\033[0m\n", out)
 
 	case "hash-object":
-		hash, err := hashObjectFuc()
+		if len(os.Args) != 4 {
+			fmt.Fprintf(os.Stderr, "\033[31m%s\033[0m\n", "Invalid Arguments.")
+		}
+
+		fileName := os.Args[3]
+		hash, err := hashObjectFunc(fileName)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "\033[31m%s\033[0m\n", err)
 			os.Exit(1)
@@ -99,30 +104,18 @@ func main() {
 		// fmt.Println(hash)
 		// fmt.Println(paths)
 		// fmt.Println(additional)
-
-		file, err := CatfileFunc(hash)
+		data, err := LsTreeFunc(hash, additional, paths)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "\033[31m%s\033[0m\n", err)
 			os.Exit(1)
 		}
-
-		treeHash, err := treeExtractor(file)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "\033[31m%s\033[0m\n", err)
-			os.Exit(1)
-		}
-
-		out, err := CatfileFunc(treeHash)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "\033[31m%s\033[0m\n", err)
-			os.Exit(1)
-		}
-
-		data := parseTreeObject([]byte(out), additional)
 
 		fmt.Fprintf(os.Stdout, "\033[32m%s\033[0m\n", data)
 
 		return
+	case "status":
+		// FetchIgnoreFiles()
+		// GetAllFiles()
 	default:
 		fmt.Fprintf(os.Stderr, "\033[31mInvalid command.\033[0m\n")
 	}

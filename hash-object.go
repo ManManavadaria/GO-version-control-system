@@ -9,12 +9,7 @@ import (
 	"path/filepath"
 )
 
-func hashObjectFuc() (string, error) {
-	if len(os.Args) != 4 {
-		return "", fmt.Errorf("usage: hash-object -w <file>\n")
-	}
-
-	fileName := os.Args[3]
+func hashObjectFunc(fileName string) (string, error) {
 
 	file, _ := os.ReadFile(fileName)
 
