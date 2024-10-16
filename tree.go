@@ -31,10 +31,17 @@ func treeExtractor(data string) (string, error) {
 	return hash, nil
 }
 
-func parseTreeObject(data []byte, additional string) string {
+type TreeDataStruct struct {
+	mode     string
+	fileType string
+	hex      string
+	filename string
+}
+
+func parseTreeObject(data []byte) []TreeDataStruct {
 
 	headerEnd := bytes.IndexByte(data, 0)
-	var treeStr string = ""
+	var treeContent []TreeDataStruct
 
 	treeData := data[headerEnd+1:]
 
@@ -61,12 +68,8 @@ func parseTreeObject(data []byte, additional string) string {
 			fileType = "tree"
 		}
 
-		if additional == "--name-only" {
-			treeStr += fmt.Sprintf("%s\n", filename)
-		} else {
-			treeStr += fmt.Sprintf("%s %s %s    %s\n", mode, fileType, hex.EncodeToString(sha1Hash), filename)
-		}
+		treeContent = append(treeContent, TreeDataStruct{mode: mode, filename: filename, fileType: fileType, hex: hex.EncodeToString(sha1Hash)})
 	}
 
-	return treeStr
+	return treeContent
 }

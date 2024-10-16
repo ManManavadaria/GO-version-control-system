@@ -11,7 +11,7 @@ import (
 
 func CatfileFunc(sha string) (string, error) {
 
-	filePath := fmt.Sprintf(".go-vcs/objects/%v/%v/", sha[0:2], sha[2:])
+	filePath := fmt.Sprintf(".git/objects/%v/%v/", sha[0:2], sha[2:])
 
 	file, err := os.Open(filepath.Dir(filePath))
 	if err != nil {

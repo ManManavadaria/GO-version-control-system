@@ -104,18 +104,33 @@ func main() {
 		// fmt.Println(hash)
 		// fmt.Println(paths)
 		// fmt.Println(additional)
-		data, err := LsTreeFunc(hash, additional, paths)
+		data, err := LsTreeFunc(hash, paths)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "\033[31m%s\033[0m\n", err)
 			os.Exit(1)
 		}
 
-		fmt.Fprintf(os.Stdout, "\033[32m%s\033[0m\n", data)
+		if additional == "--name-only" {
+			var out string
+			for _, filedata := range data {
+				out += filedata.filename + "\n"
+			}
+			fmt.Fprintf(os.Stdout, "\033[32m%s\033[0m\n", out)
+		} else {
+			var out string
+			for _, filedata := range data {
+				out += filedata.mode + " " + filedata.fileType + " " + filedata.hex + "    " + filedata.filename + "\n"
+			}
+			fmt.Fprintf(os.Stdout, "\033[32m%s\033[0m\n", out)
+		}
 
 		return
 	case "status":
-		// FetchIgnoreFiles()
-		// GetAllFiles()
+		statusData := StatusFunc()
+
+		for _, filestatus := range statusData {
+			fmt.Fprintf(os.Stdout, "\033[32m%s\033[0m\n", fmt.Sprintf("%s: %s", filestatus.status, filestatus.filename))
+		}
 	default:
 		fmt.Fprintf(os.Stderr, "\033[31mInvalid command.\033[0m\n")
 	}

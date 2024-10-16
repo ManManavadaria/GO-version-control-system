@@ -1,22 +1,22 @@
 package main
 
-func LsTreeFunc(hash string, additional string, paths []string) (string, error) {
+func LsTreeFunc(hash string, paths []string) ([]TreeDataStruct, error) {
 	file, err := CatfileFunc(hash)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	treeHash, err := treeExtractor(file)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	out, err := CatfileFunc(treeHash)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	data := parseTreeObject([]byte(out), additional)
+	treeContent := parseTreeObject([]byte(out))
 
-	return data, nil
+	return treeContent, nil
 }

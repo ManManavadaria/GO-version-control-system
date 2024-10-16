@@ -10,32 +10,47 @@ import (
 )
 
 func hashObjectFunc(fileName string) (string, error) {
-
-	file, _ := os.ReadFile(fileName)
-
-	blobHeader := fmt.Sprintf("blob %d\x00", len(file))
-
-	blobData := append([]byte(blobHeader), file...)
-
-	hex := sha1.Sum(blobData)
-
-	var buffer bytes.Buffer
-	z := zlib.NewWriter(&buffer)
-	z.Write([]byte(blobData))
-	z.Close()
-
-	dirName := filepath.Dir(fmt.Sprintf(".go-vcs/objects/%x/", hex[0:1]))
-
-	if err := os.MkdirAll(dirName, os.ModePerm); err != nil {
-		return "", fmt.Errorf("Failed to create dir")
-	}
-	f, err := os.Create(fmt.Sprintf(".go-vcs/objects/%x/%x", hex[0:1], hex[1:]))
+	fileContent, err := os.ReadFile(fileName)
 	if err != nil {
-		return "", fmt.Errorf("Failed to create blob file")
+		return "", fmt.Errorf("Failed to read file: %v", err)
+	}
+
+	normalizedContent := bytes.ReplaceAll(fileContent, []byte("\r\n"), []byte("\n"))
+
+	blobHeader := fmt.Sprintf("blob %d\x00", len(normalizedContent))
+
+	blobData := append([]byte(blobHeader), normalizedContent...)
+
+	hash := sha1.New()
+	hash.Write(blobData)
+	hex := hash.Sum(nil)
+
+	hashString := fmt.Sprintf("%x", hex)
+
+	dirName := filepath.Join(".go-vcs", "objects", hashString[:2])
+	if err := os.MkdirAll(dirName, os.ModePerm); err != nil {
+		return "", fmt.Errorf("Failed to create directory: %v", err)
+	}
+
+	filePath := filepath.Join(dirName, hashString[2:])
+	f, err := os.Create(filePath)
+	if err != nil {
+		return "", fmt.Errorf("Failed to create blob file: %v", err)
 	}
 	defer f.Close()
 
-	f.Write(buffer.Bytes())
+	var buffer bytes.Buffer
+	zlibWriter := zlib.NewWriter(&buffer)
+	_, err = zlibWriter.Write(blobData)
+	if err != nil {
+		return "", fmt.Errorf("Failed to write compressed data: %v", err)
+	}
+	zlibWriter.Close()
 
-	return fmt.Sprintf("%x", hex), nil
+	_, err = f.Write(buffer.Bytes())
+	if err != nil {
+		return "", fmt.Errorf("Failed to write to blob file: %v", err)
+	}
+
+	return hashString, nil
 }
