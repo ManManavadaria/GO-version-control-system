@@ -1,4 +1,4 @@
-package main
+package command
 
 import (
 	"bytes"
@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 )
 
-func hashObjectFunc(fileName string) (string, error) {
+func HashObjectFunc(fileName string) (string, error) {
 	fileContent, err := os.ReadFile(fileName)
 	if err != nil {
 		return "", fmt.Errorf("Failed to read file: %v", err)

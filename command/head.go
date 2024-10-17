@@ -1,4 +1,4 @@
-package main
+package command
 
 import (
 	"fmt"
@@ -9,7 +9,7 @@ import (
 
 func FetchLatestCommitHash() string {
 
-	f, err := os.Open(".go-vcs/logs/HEAD")
+	f, err := os.Open(".git/logs/HEAD")
 	if err != nil {
 		fmt.Println("err ", err)
 	}

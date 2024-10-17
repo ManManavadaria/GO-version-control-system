@@ -34,7 +34,8 @@ func GetAllFiles() {
 			return nil
 		}
 
-		if path != root {
+		// if path != root {
+		if !info.IsDir() && path != root {
 			ActiveFiles = append(ActiveFiles, path)
 		}
 		return nil

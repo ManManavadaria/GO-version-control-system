@@ -1,4 +1,4 @@
-package main
+package command
 
 import (
 	"fmt"
@@ -6,8 +6,7 @@ import (
 )
 
 func InitFunc() (string, error) {
-	fmt.Fprintf(os.Stderr, "\033[32mInitializing the repository...\033[0m\n")
-	for _, dir := range []string{".go-vcs", ".go-vcs/refs", ".go-vcs/objects"} {
+	for _, dir := range []string{".go-vcs", ".git/refs", ".go-vcs/objects"} {
 		info, err := os.Stat(dir)
 		if os.IsNotExist(err) {
 			if err := os.MkdirAll(dir, 0755); err != nil {

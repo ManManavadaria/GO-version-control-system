@@ -1,4 +1,4 @@
-package main
+package command
 
 func LsTreeFunc(hash string, paths []string) ([]TreeDataStruct, error) {
 	file, err := CatfileFunc(hash)

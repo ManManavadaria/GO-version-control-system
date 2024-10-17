@@ -3,135 +3,140 @@ package main
 import (
 	"fmt"
 	"os"
+	"strings"
+
+	"github.com/ManManavadaria/GO-version-control-system/command"
+	"github.com/ManManavadaria/GO-version-control-system/helper"
 )
 
 func main() {
-	argLen := len(os.Args)
-
-	if argLen < 2 {
-		fmt.Fprintf(os.Stderr, "\033[31mInsufficient arguments, please input the arguments.\033[0m\n")
+	cmd, err := ParseCommand(os.Args)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "\033[31m%v\033[0m\n", err)
 		return
 	}
 
-	switch cmd := os.Args[1]; cmd {
+	switch cmd.Name {
 	case "--version":
-		fmt.Fprintf(os.Stderr, "go-vcs version 0.0.1")
-		os.Exit(1)
+		helper.PrintOutput("go-vcs version 0.0.1")
+		return
 	case "init":
-		msg, err := InitFunc()
+		helper.PrintOutput("Initializing the repository...")
+		msg, err := command.InitFunc()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "\033[31m\n%s\033[0m\n", err)
-			os.Exit(1)
+			helper.PrintError(err.Error())
+			return
 		}
-		fmt.Fprintf(os.Stderr, "\033[32m%v\033[0m\n", msg)
+		helper.PrintOutput(msg)
 
 	case "cat-file":
-		if len(os.Args) < 3 {
-			fmt.Fprintf(os.Stderr, "\033[31m%s\033[0m\n", "invalid arguments, SHA missing.")
-			os.Exit(1)
+		if cmd.Length < 3 {
+			helper.PrintError("invalid arguments, SHA missing.")
 		}
 
-		sha := os.Args[2]
+		if len(cmd.Arguments) <= 0 {
+			helper.PrintError("invalid arguments, SHA missing.")
+		}
+		sha := cmd.Arguments[0]
 
-		out, err := CatfileFunc(sha)
+		out, err := command.CatfileFunc(sha)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "\033[31m%s\033[0m\n", err)
-			os.Exit(1)
+			helper.PrintError(err.Error())
 		}
-		fmt.Fprintf(os.Stdout, "\033[32m%s\033[0m\n", out)
+		helper.PrintOutput(out)
 
 	case "hash-object":
-		if len(os.Args) != 4 {
-			fmt.Fprintf(os.Stderr, "\033[31m%s\033[0m\n", "Invalid Arguments.")
+		if cmd.Length != 4 {
+			helper.PrintError("Invalid Arguments.")
+			return
 		}
 
-		fileName := os.Args[3]
-		hash, err := hashObjectFunc(fileName)
+		if len(cmd.Arguments) <= 0 {
+			helper.PrintError("Invalid Arguments.")
+			return
+		}
+
+		fileName := cmd.Arguments[0]
+		hash, err := command.HashObjectFunc(fileName)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "\033[31m%s\033[0m\n", err)
-			os.Exit(1)
+			helper.PrintError(err.Error())
 		}
-		fmt.Fprintf(os.Stdout, "\033[32m%s\033[0m\n", hash)
-
+		helper.PrintOutput(hash)
 		return
+
 	case "ls-tree":
-		if len(os.Args) < 3 {
-			fmt.Fprintf(os.Stderr, "\033[31m%s\033[0m\n", "invalid arguments, SHA missing.")
-			os.Exit(1)
+		if cmd.Length < 3 {
+			helper.PrintError("invalid arguments, SHA missing.")
 		}
 
 		var hash string
 		var paths []string
 		var additional string
 
-		if len(os.Args) == 3 {
-			if os.Args[2] == "HEAD" {
-				hash = FetchLatestCommitHash()
-			} else {
-				if len(os.Args[2]) == 40 {
-					hash = os.Args[2]
-				} else {
-					fmt.Fprintf(os.Stderr, "\033[31m%s\033[0m\n", "invalid arguments")
-					os.Exit(1)
-				}
-			}
-		} else {
-		loop:
-			for i, arg := range os.Args {
-				if i > 1 {
-					switch arg {
-					case "HEAD":
-						hash = FetchLatestCommitHash()
-						paths = append(paths, os.Args[i+1:]...)
-						break loop
-					case "--name-only":
-						additional = arg
-						continue
-					default:
-						if len(arg) == 40 {
-							hash = arg
-							paths = append(paths, os.Args[i+1:]...)
-							break loop
-						} else {
-							fmt.Fprintf(os.Stderr, "\033[31m%s\033[0m\n", "invalid arguments")
-							os.Exit(1)
-						}
-					}
-				}
-			}
+		if hash = cmd.Arguments[0]; hash == "HEAD" {
+			hash = command.FetchLatestCommitHash()
+		}
+		if len(cmd.Options) > 0 {
+			additional = cmd.Options[0]
+		}
+		if len(cmd.Arguments) > 1 {
+			paths = append(paths, cmd.Arguments[1:]...)
 		}
 
-		// fmt.Println(hash)
-		// fmt.Println(paths)
-		// fmt.Println(additional)
-		data, err := LsTreeFunc(hash, paths)
+		data, err := command.LsTreeFunc(hash, paths)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "\033[31m%s\033[0m\n", err)
-			os.Exit(1)
+			helper.PrintError(err.Error())
 		}
 
+		var out string
 		if additional == "--name-only" {
-			var out string
 			for _, filedata := range data {
-				out += filedata.filename + "\n"
+				out += filedata.Filename + "\n"
 			}
-			fmt.Fprintf(os.Stdout, "\033[32m%s\033[0m\n", out)
 		} else {
-			var out string
 			for _, filedata := range data {
-				out += filedata.mode + " " + filedata.fileType + " " + filedata.hex + "    " + filedata.filename + "\n"
+				out += filedata.Mode + " " + filedata.FileType + " " + filedata.Hex + "    " + filedata.Filename + "\n"
 			}
-			fmt.Fprintf(os.Stdout, "\033[32m%s\033[0m\n", out)
 		}
-
+		helper.PrintOutput(out)
 		return
+
 	case "status":
-		statusData := StatusFunc()
+		statusData := command.StatusFunc(ActiveFiles)
 
 		for _, filestatus := range statusData {
-			fmt.Fprintf(os.Stdout, "\033[32m%s\033[0m\n", fmt.Sprintf("%s: %s", filestatus.status, filestatus.filename))
+			helper.PrintOutput(fmt.Sprintf("%s: %s", filestatus.Status, filestatus.Filename))
 		}
 	default:
-		fmt.Fprintf(os.Stderr, "\033[31mInvalid command.\033[0m\n")
+		helper.PrintError("Invalid command.")
 	}
+}
+
+type Command struct {
+	Name      string
+	Length    int
+	Options   []string
+	Arguments []string
+}
+
+func ParseCommand(args []string) (Command, error) {
+	var cmd Command
+	cmd.Length = len(args)
+	cmd.Options = []string{}
+	cmd.Arguments = []string{}
+
+	if len(args) < 2 {
+		return Command{}, fmt.Errorf("No command provided. Use 'govcs <command> [options] [arguments]'.")
+	}
+
+	cmd.Name = args[1]
+
+	for _, arg := range args[2:] {
+		if strings.HasPrefix(arg, "-") {
+			cmd.Options = append(cmd.Options, arg)
+		} else {
+			cmd.Arguments = append(cmd.Arguments, arg)
+		}
+	}
+	return cmd, nil
 }

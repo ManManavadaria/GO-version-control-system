@@ -1,4 +1,4 @@
-package main
+package command
 
 import (
 	"bytes"
@@ -32,10 +32,10 @@ func treeExtractor(data string) (string, error) {
 }
 
 type TreeDataStruct struct {
-	mode     string
-	fileType string
-	hex      string
-	filename string
+	Mode     string
+	FileType string
+	Hex      string
+	Filename string
 }
 
 func parseTreeObject(data []byte) []TreeDataStruct {
@@ -68,7 +68,7 @@ func parseTreeObject(data []byte) []TreeDataStruct {
 			fileType = "tree"
 		}
 
-		treeContent = append(treeContent, TreeDataStruct{mode: mode, filename: filename, fileType: fileType, hex: hex.EncodeToString(sha1Hash)})
+		treeContent = append(treeContent, TreeDataStruct{Mode: mode, Filename: filename, FileType: fileType, Hex: hex.EncodeToString(sha1Hash)})
 	}
 
 	return treeContent

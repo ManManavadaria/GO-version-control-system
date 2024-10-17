@@ -1,4 +1,4 @@
-package main
+package command
 
 import (
 	"compress/zlib"
@@ -33,4 +33,15 @@ func CatfileFunc(sha string) (string, error) {
 	str := string(s)
 
 	return str[strings.Index(str, "\x00"):], nil
+}
+
+func RemoveFile(sha string) error {
+
+	filePath := fmt.Sprintf(".git/objects/%v/%v/", sha[0:2], sha[2:])
+
+	err := os.Remove(filePath)
+	if err != nil {
+		return err
+	}
+	return nil
 }
