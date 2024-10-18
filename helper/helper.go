@@ -45,6 +45,10 @@ func PrintOutput(data any) {
 	}
 }
 
+func PrintDeleted(info string) {
+	fmt.Fprintln(os.Stdout, colorize(info, Red))
+}
+
 func PrintInfo(info string) {
 	fmt.Fprintln(os.Stdout, colorize(info, Yellow))
 }

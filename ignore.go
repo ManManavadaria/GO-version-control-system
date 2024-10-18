@@ -13,8 +13,9 @@ var (
 	ActiveFiles   []string
 )
 
-func GetAllFiles() {
-	root := "."
+// NOTE: Add error handling
+func GetAllFiles(root string) []string {
+	var files []string
 	excludeMap := make(map[string]bool)
 	for _, name := range FilesToIgnore {
 		excludeMap[name] = true
@@ -36,17 +37,17 @@ func GetAllFiles() {
 
 		// if path != root {
 		if !info.IsDir() && path != root {
-			ActiveFiles = append(ActiveFiles, path)
+			files = append(files, path)
 		}
 		return nil
 	})
 
 	if err != nil {
 		fmt.Printf("Error walking the path %v: %v\n", root, err)
+		return nil
 	}
 
-	fmt.Println(FilesToIgnore)
-	fmt.Println(ActiveFiles)
+	return files
 }
 
 func init() {
@@ -76,6 +77,6 @@ func init() {
 
 	FilesToIgnore = append(FilesToIgnore, ".git")
 
-	GetAllFiles()
+	ActiveFiles = GetAllFiles(".")
 	return
 }

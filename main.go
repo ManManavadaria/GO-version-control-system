@@ -18,6 +18,11 @@ func main() {
 
 	switch cmd.Name {
 	case "--version":
+		idx := command.LoadIndex()
+
+		for _, entry := range idx.Entries {
+			fmt.Printf("%+v\n", entry.Path)
+		}
 		helper.PrintOutput("go-vcs version 0.0.1")
 		return
 	case "init":
@@ -27,6 +32,7 @@ func main() {
 			helper.PrintError(err.Error())
 			return
 		}
+		command.InitIndex()
 		helper.PrintOutput(msg)
 
 	case "cat-file":
@@ -104,9 +110,42 @@ func main() {
 	case "status":
 		statusData := command.StatusFunc(ActiveFiles)
 
-		for _, filestatus := range statusData {
-			helper.PrintOutput(fmt.Sprintf("%s: %s", filestatus.Status, filestatus.Filename))
+		if len(statusData) == 0 {
+			helper.PrintInfo("Working directory is ideal")
 		}
+		for _, filestatus := range statusData {
+			if filestatus.Status == "modified" {
+				helper.PrintInfo(fmt.Sprintf("%s: %s", filestatus.Status, filestatus.Filename))
+			} else if filestatus.Status == "new file" {
+				helper.PrintOutput(fmt.Sprintf("%s: %s", filestatus.Status, filestatus.Filename))
+			} else if filestatus.Status == "removed" {
+				helper.PrintDeleted(fmt.Sprintf("%s: %s", filestatus.Status, filestatus.Filename))
+			}
+		}
+	case "add":
+		statusData := command.StatusFunc(ActiveFiles)
+
+		if len(cmd.Arguments) == 1 && cmd.Arguments[0] == "." {
+			var files []string
+
+			for _, data := range statusData {
+				files = append(files, data.Filename)
+			}
+			command.UpdateIndex(files)
+		} else if len(cmd.Arguments) >= 1 {
+			var files []string
+			for _, file := range cmd.Arguments {
+				f, _ := os.Stat(file)
+				if f.IsDir() {
+					chFiles := GetAllFiles(fmt.Sprintf("./%s", file))
+					files = append(files, chFiles...)
+				} else {
+					files = append(files, file)
+				}
+			}
+			command.UpdateIndex(files)
+		}
+
 	default:
 		helper.PrintError("Invalid command.")
 	}
