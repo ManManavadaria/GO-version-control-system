@@ -5,7 +5,6 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
-	"fmt"
 	"io"
 	"log"
 	"os"
@@ -240,14 +239,45 @@ func UpdateIndex(activeFiles []string) {
 					index.Entries = append(index.Entries[:i], index.Entries[i+1:]...)
 				}
 			}
-
+			continue
 		} else if err != nil {
-			fmt.Println("else if ")
 			helper.PrintError(err.Error())
 		}
 		if err := index.AddEntry(path, content); err != nil {
-			fmt.Println("add entry")
 			helper.PrintError(err.Error())
+		}
+	}
+
+	file, err := os.OpenFile(".go-vcs/index", os.O_WRONLY, 0666)
+	if err != nil {
+		panic(err)
+	}
+	defer file.Close()
+
+	file.Truncate(0)
+
+	if err := index.Write(file); err != nil {
+		log.Fatal(err)
+	}
+}
+func UnstageFilesFromIndex(files []TreeDataStruct) {
+	index := LoadIndex()
+
+	for _, file := range files {
+		for i := len(index.Entries) - 1; i >= 0; i-- {
+			entry := index.Entries[i]
+			if entry.Path == file.Filename {
+				var byteArr [20]byte
+				bytes, err := hex.DecodeString(file.Hex)
+				if err != nil {
+					log.Fatal(err)
+				}
+
+				copy(byteArr[:], bytes[:20])
+				entry.Sha1 = byteArr
+				index.Entries[i] = entry
+			}
+			continue
 		}
 	}
 

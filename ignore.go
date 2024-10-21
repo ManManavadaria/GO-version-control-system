@@ -80,3 +80,25 @@ func init() {
 	ActiveFiles = GetAllFiles(".")
 	return
 }
+
+func ValidateFileOptionArgument(files []string) error {
+	activeFiles := ActiveFiles
+
+	var correctFiles map[string]bool = map[string]bool{}
+
+	for _, filePath := range activeFiles {
+		correctFiles[filePath] = true
+	}
+
+	for _, file := range files {
+		if file == "." {
+			return nil
+		}
+		_, ok := correctFiles[file]
+		if !ok {
+			return fmt.Errorf("Error searching file : %s", file)
+		}
+	}
+
+	return nil
+}

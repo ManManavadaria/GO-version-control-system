@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"os"
+
+	"github.com/ManManavadaria/GO-version-control-system/helper"
 )
 
 func StatusFunc(ActiveFiles []string) []FileStatusStruct {
@@ -39,8 +41,11 @@ func (idx *Index) IndexHashCompare(activeFiles []string) []FileStatusStruct {
 		// relativePath := strings.TrimPrefix(path, workingDir+"/")
 		entry, existsInIndex := indexFileMap[path]
 
-		currentHash, _ := HashObjectFunc(path)
-		RemoveFile(path)
+		//NOTE: implement a create hash only function to avaoid using RemoveFile funtion
+		currentHash, err := GenerateBlobHash(path)
+		if err != nil {
+			fmt.Println("err HashObjectFunc", err)
+		}
 
 		if existsInIndex {
 			if fmt.Sprintf("%x", entry.Sha1) != currentHash {
@@ -54,15 +59,45 @@ func (idx *Index) IndexHashCompare(activeFiles []string) []FileStatusStruct {
 		}
 	}
 
-	for path := range indexFileMap {
-		fileTrack = append(fileTrack, FileStatusStruct{Filename: path, Status: "removed", BlobHash: ""})
-		// fmt.Printf("Deleted: %s\n", path)
+	if len(indexFileMap) > 0 {
+		for path := range indexFileMap {
+			fileTrack = append(fileTrack, FileStatusStruct{Filename: path, Status: "removed", BlobHash: ""})
+		}
 	}
 
 	return fileTrack
 }
 
-// func treeFunc(treehash string, fileTrack *[]string, path string) []FileStatusStruct {
+func StagedFiles() []TreeDataStruct {
+	var stagedFiles []TreeDataStruct
+	hash := FetchLatestCommitHash()
+
+	treeData, err := LsTreeFuncAllFilesSearch(hash)
+	if err != nil {
+		helper.PrintError(err.Error())
+	}
+
+	var treeMap map[string]TreeDataStruct = map[string]TreeDataStruct{}
+
+	for _, file := range treeData {
+		treeMap[file.Filename] = file
+	}
+
+	index := LoadIndex()
+
+	for _, entry := range index.Entries {
+		file, ok := treeMap[entry.Path]
+		if ok {
+			if file.Hex != fmt.Sprintf("%x", entry.Sha1) {
+				stagedFiles = append(stagedFiles, file)
+			}
+		}
+	}
+
+	return stagedFiles
+}
+
+// func StagedFiles(treehash string, fileTrack *[]string, path string) []FileStatusStruct {
 // 	var changedFilesData []FileStatusStruct
 
 // 	treeData, err := LsTreeFunc(treehash, []string{})
@@ -105,7 +140,7 @@ func (idx *Index) IndexHashCompare(activeFiles []string) []FileStatusStruct {
 // 				removeElement(fileTrack, file.Filename)
 // 			}
 // 		} else if file.FileType == "tree" {
-// 			changedFilesData = append(changedFilesData, treeFunc(file.Hex, fileTrack, file.Filename)...)
+// 			changedFilesData = append(changedFilesData, StaggedFiles(file.Hex, fileTrack, file.Filename)...)
 // 		}
 // 	}
 

@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/ManManavadaria/GO-version-control-system/command"
@@ -18,10 +19,11 @@ func main() {
 
 	switch cmd.Name {
 	case "--version":
+		// command.InitIndex()
 		idx := command.LoadIndex()
 
 		for _, entry := range idx.Entries {
-			fmt.Printf("%+v\n", entry.Path)
+			fmt.Printf("%+v   %v\n", entry.Path, fmt.Sprintf("%x", entry.Sha1))
 		}
 		helper.PrintOutput("go-vcs version 0.0.1")
 		return
@@ -108,11 +110,25 @@ func main() {
 		return
 
 	case "status":
+		stagedFiles := command.StagedFiles()
+
+		if len(stagedFiles) > 0 {
+
+			helper.PrintOutput("Staged files +++++++++\n")
+			for _, file := range stagedFiles {
+				helper.PrintOutput(fmt.Sprintf("%s", file.Filename))
+			}
+			helper.PrintOutput("\n+++++++++\n\n")
+		} else {
+			helper.PrintInfo("Staging is empty...\n")
+		}
+
 		statusData := command.StatusFunc(ActiveFiles)
 
 		if len(statusData) == 0 {
 			helper.PrintInfo("Working directory is ideal")
 		}
+		helper.PrintOutput("Changes not staged for commit ---------\n")
 		for _, filestatus := range statusData {
 			if filestatus.Status == "modified" {
 				helper.PrintInfo(fmt.Sprintf("%s: %s", filestatus.Status, filestatus.Filename))
@@ -122,7 +138,12 @@ func main() {
 				helper.PrintDeleted(fmt.Sprintf("%s: %s", filestatus.Status, filestatus.Filename))
 			}
 		}
+		helper.PrintOutput("\n---------")
 	case "add":
+		err := ValidateFileOptionArgument(cmd.Arguments)
+		if err != nil {
+			helper.PrintError(err.Error())
+		}
 		statusData := command.StatusFunc(ActiveFiles)
 
 		if len(cmd.Arguments) == 1 && cmd.Arguments[0] == "." {
@@ -135,6 +156,7 @@ func main() {
 		} else if len(cmd.Arguments) >= 1 {
 			var files []string
 			for _, file := range cmd.Arguments {
+				file = filepath.FromSlash(file)
 				f, _ := os.Stat(file)
 				if f.IsDir() {
 					chFiles := GetAllFiles(fmt.Sprintf("./%s", file))
@@ -144,6 +166,23 @@ func main() {
 				}
 			}
 			command.UpdateIndex(files)
+		}
+	case "restore":
+		err := ValidateFileOptionArgument(cmd.Arguments)
+		if err != nil {
+			helper.PrintError(err.Error())
+		}
+		var treeFiles []command.TreeDataStruct
+		if len(cmd.Arguments) == 1 && cmd.Arguments[0] == "." {
+			treeFiles = command.FetchRestoreFilesHex(ActiveFiles)
+		} else {
+			treeFiles = command.FetchRestoreFilesHex(cmd.Arguments)
+		}
+
+		if cmd.Options[0] == "--staged" {
+			command.UnstageFilesFromIndex(treeFiles)
+		} else {
+			command.WriteHeadData(treeFiles)
 		}
 
 	default:

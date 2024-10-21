@@ -12,6 +12,7 @@ import (
 func HashObjectFunc(fileName string) (string, error) {
 	fileContent, err := os.ReadFile(fileName)
 	if err != nil {
+		fmt.Println("err :", err)
 		return "", fmt.Errorf("Failed to read file: %v", err)
 	}
 
@@ -51,6 +52,27 @@ func HashObjectFunc(fileName string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("Failed to write to blob file: %v", err)
 	}
+
+	return hashString, nil
+}
+func GenerateBlobHash(fileName string) (string, error) {
+	fileContent, err := os.ReadFile(fileName)
+	if err != nil {
+		fmt.Println("err :", err)
+		return "", fmt.Errorf("Failed to read file: %v", err)
+	}
+
+	normalizedContent := bytes.ReplaceAll(fileContent, []byte("\r\n"), []byte("\n"))
+
+	blobHeader := fmt.Sprintf("blob %d\x00", len(normalizedContent))
+
+	blobData := append([]byte(blobHeader), normalizedContent...)
+
+	hash := sha1.New()
+	hash.Write(blobData)
+	hex := hash.Sum(nil)
+
+	hashString := fmt.Sprintf("%x", hex)
 
 	return hashString, nil
 }
