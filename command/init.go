@@ -6,7 +6,7 @@ import (
 )
 
 func InitFunc() (string, error) {
-	for _, dir := range []string{".go-vcs", ".git/refs", ".go-vcs/objects"} {
+	for _, dir := range []string{".go-vcs", ".go-vcs/refs/heads", ".go-vcs/logs/refs/heads", ".go-vcs/objects"} {
 		info, err := os.Stat(dir)
 		if os.IsNotExist(err) {
 			if err := os.MkdirAll(dir, 0755); err != nil {

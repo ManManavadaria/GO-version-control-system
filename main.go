@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/ManManavadaria/GO-version-control-system/command"
 	"github.com/ManManavadaria/GO-version-control-system/helper"
@@ -19,12 +20,6 @@ func main() {
 
 	switch cmd.Name {
 	case "--version":
-		// command.InitIndex()
-		idx := command.LoadIndex()
-
-		for _, entry := range idx.Entries {
-			fmt.Printf("%+v   %v\n", entry.Path, fmt.Sprintf("%x", entry.Sha1))
-		}
 		helper.PrintOutput("go-vcs version 0.0.1")
 		return
 	case "init":
@@ -184,6 +179,69 @@ func main() {
 		} else {
 			command.WriteHeadData(treeFiles)
 		}
+	case "write-tree":
+		hash := command.WriteTree()
+		helper.PrintSuccess(hash)
+
+	case "commit":
+		if len(os.Args) > 4 {
+			helper.PrintError("Invalid arguments.")
+		}
+
+		var commit command.CommitConfig
+		if len(cmd.Options) > 0 {
+			for _, option := range cmd.Options {
+				if option == "-a" {
+					statusData := command.StatusFunc(ActiveFiles)
+					var files []string
+					for _, data := range statusData {
+						files = append(files, data.Filename)
+					}
+					command.UpdateIndex(files)
+				} else if option == "-m" {
+					commit.CommitMsg = cmd.Arguments[0]
+				}
+			}
+		}
+
+		stagedFiles := command.StagedFiles()
+		if len(stagedFiles) <= 0 {
+			helper.PrintInfo("Staging is ideal, Please stage changes to complete the commit process.")
+			return
+		}
+
+		commit.CurrentTreeHash = command.WriteTree()
+		commit.ParentCommitHash = command.FetchLatestCommitHash()
+
+		commit.AuthorName = "ManPatel"
+		commit.AuthorEmail = "mam@gmail.com"
+		commit.Timestamp = time.Now().Unix()
+		_, tzOffset := time.Now().Zone()
+		tzHours := tzOffset / 3600
+		tzMinutes := (tzOffset % 3600) / 60
+
+		commit.TimeZone = fmt.Sprintf("%+03d%02d", tzHours, tzMinutes)
+
+		err := commit.CreateCommitObject()
+		if err != nil {
+			helper.PrintError(err.Error())
+		}
+
+		var commitStr string
+		commitStr = fmt.Sprintf("%s %s %s %s %d %s %s", commit.ParentCommitHash, commit.CurrentCommitHash, commit.AuthorName, commit.AuthorEmail, commit.Timestamp, commit.TimeZone, fmt.Sprintf("commit: %s", commit.CommitMsg))
+
+		fmt.Println(commitStr)
+	case "branch":
+		files := command.ListAllBranch()
+		if len(cmd.Options) == 0 && len(cmd.Arguments) == 0 {
+			for _, file := range files {
+				helper.PrintSuccess(file.Name())
+			}
+		}
+	case "checkout":
+		//NOTE: create a new branch - create branch name file in logs/refs/heads/* and refs/heads/*
+		//NOTE: In Branch file write the latest commit of perent branch and write first commmit as lates commit of parent branch with details
+		//NOTE: Update HEAD file's reerence file to new file
 
 	default:
 		helper.PrintError("Invalid command.")
