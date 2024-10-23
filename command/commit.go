@@ -6,6 +6,8 @@ import (
 	"crypto/sha1"
 	"fmt"
 	"os"
+
+	"github.com/ManManavadaria/GO-version-control-system/helper"
 )
 
 type CommitConfig struct {
@@ -70,4 +72,51 @@ func (c *CommitConfig) GenerateCommitObjectContent() []byte {
 	}
 
 	return commitContent.Bytes()
+}
+
+func (c *CommitConfig) AddCommitStrInHead() {
+
+	commitStr := fmt.Sprintf("%s %s %s <%s> %d %s    %s\n", c.ParentCommitHash, c.CurrentCommitHash, c.AuthorName, c.AuthorEmail, c.Timestamp, c.TimeZone, fmt.Sprintf("commit: %s", c.CommitMsg))
+
+	file, err := os.OpenFile(".go-vcs/logs/HEAD", os.O_APPEND|os.O_WRONLY, 0666)
+	if err != nil {
+		panic(err)
+	}
+	defer file.Close()
+
+	file.WriteString(commitStr)
+}
+
+func (c *CommitConfig) AddCommitStr(path string, strType string) {
+	commitStr := fmt.Sprintf("%s %s %s <%s> %d %s    %s\n", c.ParentCommitHash, c.CurrentCommitHash, c.AuthorName, c.AuthorEmail, c.Timestamp, c.TimeZone, fmt.Sprintf("%s: %s", strType, c.CommitMsg))
+
+	file, err := os.OpenFile(path, os.O_APPEND|os.O_WRONLY, 0666)
+	if err != nil {
+		panic(err)
+	}
+	defer file.Close()
+
+	file.WriteString(commitStr)
+}
+
+func (c *CommitConfig) UpdateCommitHash(path string) {
+
+	file, err := os.OpenFile(path, os.O_WRONLY, 0666)
+	if err != nil {
+		panic(err)
+	}
+	defer file.Close()
+
+	file.Truncate(0)
+
+	file.WriteString(c.CurrentCommitHash)
+}
+
+func ReplaceCommitContent(hash string) {
+	treeData, err := LsTreeFuncAllFilesSearch(hash)
+	if err != nil {
+		helper.PrintError(err.Error())
+	}
+
+	WriteHeadData(treeData)
 }

@@ -53,6 +53,8 @@ func GetAllFiles(root string) []string {
 func init() {
 	f, err := os.Open(".gitignore")
 	if os.IsNotExist(err) {
+		FilesToIgnore = append(FilesToIgnore, ".git", ".go-vcs")
+		ActiveFiles = GetAllFiles(".")
 		return
 	}
 	defer f.Close()
@@ -75,7 +77,7 @@ func init() {
 
 	FilesToIgnore = append(FilesToIgnore, validFileNames...)
 
-	FilesToIgnore = append(FilesToIgnore, ".git")
+	FilesToIgnore = append(FilesToIgnore, ".git", ".go-vcs")
 
 	ActiveFiles = GetAllFiles(".")
 	return

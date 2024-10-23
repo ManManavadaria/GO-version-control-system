@@ -18,5 +18,14 @@ func InitFunc() (string, error) {
 			return "", fmt.Errorf("Repository already exists.")
 		}
 	}
+
+	headFile, err := os.Create(".go-vcs/HEAD")
+	if err != nil {
+		return "", err
+	}
+	defer headFile.Close()
+
+	headFile.WriteString("ref: refs/heads/main")
+
 	return "Repository initialized successfully...", nil
 }

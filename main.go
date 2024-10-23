@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -105,7 +106,14 @@ func main() {
 		return
 
 	case "status":
-		stagedFiles := command.StagedFiles()
+		stagedFiles, ok := command.StagedFiles()
+
+		if !ok {
+			for _, file := range ActiveFiles {
+				helper.PrintInfo(file)
+			}
+			return
+		}
 
 		if len(stagedFiles) > 0 {
 
@@ -204,12 +212,13 @@ func main() {
 			}
 		}
 
-		stagedFiles := command.StagedFiles()
+		stagedFiles, _ := command.StagedFiles()
 		if len(stagedFiles) <= 0 {
 			helper.PrintInfo("Staging is ideal, Please stage changes to complete the commit process.")
 			return
 		}
 
+		//NOTE: create a initcommit function to generate a base config struct
 		commit.CurrentTreeHash = command.WriteTree()
 		commit.ParentCommitHash = command.FetchLatestCommitHash()
 
@@ -227,21 +236,52 @@ func main() {
 			helper.PrintError(err.Error())
 		}
 
-		var commitStr string
-		commitStr = fmt.Sprintf("%s %s %s %s %d %s %s", commit.ParentCommitHash, commit.CurrentCommitHash, commit.AuthorName, commit.AuthorEmail, commit.Timestamp, commit.TimeZone, fmt.Sprintf("commit: %s", commit.CommitMsg))
+		commit.AddCommitStr(".go-vcs/logs/HEAD", "commit")
+		commit.AddCommitStr(command.FetchBranchLogFileAddr(), "commit")
+		commit.UpdateCommitHash(command.FetchBranchHeadFileAddr())
 
-		fmt.Println(commitStr)
 	case "branch":
 		files := command.ListAllBranch()
 		if len(cmd.Options) == 0 && len(cmd.Arguments) == 0 {
+			current := command.CurrentBranchName()
 			for _, file := range files {
-				helper.PrintSuccess(file.Name())
+				if file.Name() == current {
+					helper.PrintSuccess("* " + file.Name())
+				} else {
+					helper.PrintSuccess(file.Name())
+				}
+			}
+		}
+
+		if len(cmd.Options) == 0 && len(cmd.Arguments) == 1 {
+			command.CreateNewBranch(cmd.Arguments[0])
+		}
+
+		if len(cmd.Options) == 1 && len(cmd.Arguments) == 1 {
+			switch cmd.Options[0] {
+			case "-m":
+				command.RenameCurrentBranch(cmd.Arguments[0])
+				// case "-d":
+				// case "-D":
 			}
 		}
 	case "checkout":
-		//NOTE: create a new branch - create branch name file in logs/refs/heads/* and refs/heads/*
-		//NOTE: In Branch file write the latest commit of perent branch and write first commmit as lates commit of parent branch with details
-		//NOTE: Update HEAD file's reerence file to new file
+		if len(command.StatusFunc(ActiveFiles)) > 0 {
+			helper.PrintInfo("Changes in working directory are not commited yet")
+		}
+		if len(cmd.Options) == 0 && len(cmd.Arguments) == 1 {
+			hash := command.SwitchBranch(cmd.Arguments[0])
+			command.ReplaceCommitContent(hash)
+		}
+
+		if len(cmd.Options) == 1 && len(cmd.Arguments) == 1 {
+			switch cmd.Options[0] {
+			case "-d":
+				command.CreateNewBranch(cmd.Arguments[0])
+				hash := command.SwitchBranch(cmd.Arguments[0])
+				command.ReplaceCommitContent(hash)
+			}
+		}
 
 	default:
 		helper.PrintError("Invalid command.")
@@ -266,6 +306,13 @@ func ParseCommand(args []string) (Command, error) {
 	}
 
 	cmd.Name = args[1]
+
+	if cmd.Name != "init" {
+		_, err := os.Stat(".go-vcs")
+		if errors.Is(err, os.ErrNotExist) {
+			helper.PrintError("Failed to find .go-vcs directory, Repository not availables")
+		}
+	}
 
 	for _, arg := range args[2:] {
 		if strings.HasPrefix(arg, "-") {

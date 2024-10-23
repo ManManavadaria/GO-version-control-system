@@ -68,9 +68,13 @@ func (idx *Index) IndexHashCompare(activeFiles []string) []FileStatusStruct {
 	return fileTrack
 }
 
-func StagedFiles() []TreeDataStruct {
+func StagedFiles() ([]TreeDataStruct, bool) {
 	var stagedFiles []TreeDataStruct
 	hash := FetchLatestCommitHash()
+
+	if hash == "" {
+		return []TreeDataStruct{}, false
+	}
 
 	treeData, err := LsTreeFuncAllFilesSearch(hash)
 	if err != nil {
@@ -94,7 +98,7 @@ func StagedFiles() []TreeDataStruct {
 		}
 	}
 
-	return stagedFiles
+	return stagedFiles, true
 }
 
 // func StagedFiles(treehash string, fileTrack *[]string, path string) []FileStatusStruct {
