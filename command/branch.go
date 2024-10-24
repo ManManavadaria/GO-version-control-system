@@ -27,7 +27,29 @@ func ListAllBranch() []fs.DirEntry {
 	return files
 }
 
+func CheckExistingBranch(branch string) bool {
+	exist := false
+
+	files, err := os.ReadDir(".go-vcs/refs/heads")
+	if err != nil {
+		fmt.Println("Error : ", err)
+	}
+
+	for _, file := range files {
+		if file.IsDir() {
+			fmt.Println("Error : folder available in the heads directory", file.Name())
+		}
+		if file.Name() == branch {
+			exist = true
+		}
+	}
+	return exist
+}
+
 func RenameCurrentBranch(newName string) {
+	if ok := CheckExistingBranch(newName); ok {
+		helper.PrintError(fmt.Sprintf("Branch name %s already exists", newName))
+	}
 	branchHead := FetchBranchHeadFileAddr()
 	branchLog := FetchBranchLogFileAddr()
 
@@ -45,7 +67,36 @@ func RenameCurrentBranch(newName string) {
 	UpdateRefPath(fmt.Sprintf("refs/heads/%s", newName))
 }
 
+func RenameBranch(currentName string, newName string) {
+	if ok := CheckExistingBranch(currentName); !ok {
+		helper.PrintError(fmt.Sprintf("Branch %s does not exists", currentName))
+	}
+	if ok := CheckExistingBranch(newName); ok {
+		helper.PrintError(fmt.Sprintf("Branch name %s already exists", newName))
+	}
+	branchHead := fmt.Sprintf(".go-vcs/refs/heads/%s", currentName)
+	branchLog := fmt.Sprintf(".go-vcs/logs/refs/heads/%s", currentName)
+
+	newHeadPath := fmt.Sprintf(".go-vcs/refs/heads/%s", newName)
+	newLogPath := fmt.Sprintf(".go-vcs/logs/refs/heads/%s", newName)
+
+	if err := os.Rename(branchHead, newHeadPath); err != nil {
+		helper.PrintError(err.Error())
+	}
+
+	if err := os.Rename(branchLog, newLogPath); err != nil {
+		helper.PrintError(err.Error())
+	}
+
+	if CurrentBranchName() == currentName {
+		UpdateRefPath(fmt.Sprintf("refs/heads/%s", newName))
+	}
+}
+
 func CreateNewBranch(name string) {
+	if ok := CheckExistingBranch(name); ok {
+		helper.PrintError(fmt.Sprintf("Branch name %s already exists", name))
+	}
 
 	newHeadPath := fmt.Sprintf(".go-vcs/refs/heads/%s", name)
 	newLogPath := fmt.Sprintf(".go-vcs/logs/refs/heads/%s", name)
@@ -64,6 +115,31 @@ func CreateNewBranch(name string) {
 	defer headFile.Close()
 
 	headFile.WriteString(FetchLatestCommitHash())
+}
+func CreateInitialBranch(name string) {
+
+	newHeadPath := fmt.Sprintf(".go-vcs/refs/heads/%s", name)
+	newLogPath := fmt.Sprintf(".go-vcs/logs/refs/heads/%s", name)
+
+	logFile, err := os.Create(newLogPath)
+	if err != nil {
+		helper.PrintError(err.Error())
+	}
+	defer logFile.Close()
+
+	headFile, err := os.Create(newHeadPath)
+	if err != nil {
+		helper.PrintError(err.Error())
+	}
+	defer headFile.Close()
+}
+
+func CreateLogsHEAD() {
+	logFile, err := os.Create(".go-vcs/logs/HEAD")
+	if err != nil {
+		helper.PrintError(err.Error())
+	}
+	defer logFile.Close()
 }
 
 func writeFirstCommitToNewBranch(filePath string) {

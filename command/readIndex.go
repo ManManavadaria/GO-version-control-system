@@ -3,6 +3,7 @@ package command
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -12,6 +13,9 @@ import (
 func LoadIndex() Index {
 	var err error
 	file, err := os.Open(".go-vcs/index")
+	if errors.Is(err, os.ErrNotExist) {
+		return *NewIndex()
+	}
 	if err != nil {
 		panic(err)
 	}

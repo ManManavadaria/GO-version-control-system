@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/ManManavadaria/GO-version-control-system/helper"
 )
 
 var (
@@ -84,6 +86,10 @@ func init() {
 }
 
 func ValidateFileOptionArgument(files []string) error {
+	if len(files) == 0 {
+		helper.PrintError("Invalid command arguments, filename are missing.")
+	}
+
 	activeFiles := ActiveFiles
 
 	var correctFiles map[string]bool = map[string]bool{}

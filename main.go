@@ -30,7 +30,6 @@ func main() {
 			helper.PrintError(err.Error())
 			return
 		}
-		command.InitIndex()
 		helper.PrintOutput(msg)
 
 	case "cat-file":
@@ -69,6 +68,9 @@ func main() {
 		return
 
 	case "ls-tree":
+		if cmd.IsInitialCommit {
+			return
+		}
 		if cmd.Length < 3 {
 			helper.PrintError("invalid arguments, SHA missing.")
 		}
@@ -106,31 +108,29 @@ func main() {
 		return
 
 	case "status":
-		stagedFiles, ok := command.StagedFiles()
-
-		if !ok {
-			for _, file := range ActiveFiles {
-				helper.PrintInfo(file)
-			}
-			return
-		}
-
-		if len(stagedFiles) > 0 {
-
-			helper.PrintOutput("Staged files +++++++++\n")
-			for _, file := range stagedFiles {
-				helper.PrintOutput(fmt.Sprintf("%s", file.Filename))
+		if idx := command.LoadIndex(); cmd.IsInitialCommit && len(idx.Entries) > 0 {
+			helper.PrintOutput("Initial Staged files +++++++++\n")
+			for _, entry := range idx.Entries {
+				helper.PrintOutput(fmt.Sprintf("%s", entry.Path))
 			}
 			helper.PrintOutput("\n+++++++++\n\n")
+		} else if stagedFiles, _ := command.StagedFiles(); !cmd.IsInitialCommit && len(stagedFiles) > 0 {
+			if len(stagedFiles) > 0 {
+				helper.PrintOutput("Staged files +++++++++\n")
+				for _, file := range stagedFiles {
+					helper.PrintOutput(fmt.Sprintf("%s", file.Filename))
+				}
+				helper.PrintOutput("\n+++++++++\n\n")
+			}
 		} else {
 			helper.PrintInfo("Staging is empty...\n")
 		}
 
 		statusData := command.StatusFunc(ActiveFiles)
-
 		if len(statusData) == 0 {
 			helper.PrintInfo("Working directory is ideal")
 		}
+
 		helper.PrintOutput("Changes not staged for commit ---------\n")
 		for _, filestatus := range statusData {
 			if filestatus.Status == "modified" {
@@ -147,13 +147,17 @@ func main() {
 		if err != nil {
 			helper.PrintError(err.Error())
 		}
-		statusData := command.StatusFunc(ActiveFiles)
+		command.InitIndex()
 
 		if len(cmd.Arguments) == 1 && cmd.Arguments[0] == "." {
 			var files []string
-
-			for _, data := range statusData {
-				files = append(files, data.Filename)
+			if cmd.IsInitialCommit {
+				files = ActiveFiles
+			} else {
+				statusData := command.StatusFunc(ActiveFiles)
+				for _, data := range statusData {
+					files = append(files, data.Filename)
+				}
 			}
 			command.UpdateIndex(files)
 		} else if len(cmd.Arguments) >= 1 {
@@ -169,6 +173,10 @@ func main() {
 				}
 			}
 			command.UpdateIndex(files)
+		}
+
+		if cmd.IsInitialCommit {
+			command.WriteTree()
 		}
 	case "restore":
 		err := ValidateFileOptionArgument(cmd.Arguments)
@@ -211,16 +219,23 @@ func main() {
 				}
 			}
 		}
-
-		stagedFiles, _ := command.StagedFiles()
-		if len(stagedFiles) <= 0 {
-			helper.PrintInfo("Staging is ideal, Please stage changes to complete the commit process.")
-			return
+		if !cmd.IsInitialCommit {
+			stagedFiles, _ := command.StagedFiles()
+			if len(stagedFiles) <= 0 {
+				helper.PrintInfo("Staging is ideal, Please stage changes to complete the commit process.")
+				return
+			}
 		}
 
 		//NOTE: create a initcommit function to generate a base config struct
 		commit.CurrentTreeHash = command.WriteTree()
-		commit.ParentCommitHash = command.FetchLatestCommitHash()
+		if cmd.IsInitialCommit {
+			commit.ParentCommitHash = "0000000000000000000000000000000000000000"
+			command.CreateInitialBranch(command.CurrentBranchName())
+			command.CreateLogsHEAD()
+		} else {
+			commit.ParentCommitHash = command.FetchLatestCommitHash()
+		}
 
 		commit.AuthorName = "ManPatel"
 		commit.AuthorEmail = "mam@gmail.com"
@@ -237,10 +252,18 @@ func main() {
 		}
 
 		commit.AddCommitStr(".go-vcs/logs/HEAD", "commit")
-		commit.AddCommitStr(command.FetchBranchLogFileAddr(), "commit")
+		if cmd.IsInitialCommit {
+			commit.AddCommitStr(command.FetchBranchLogFileAddr(), "commit (initial)")
+		} else {
+			commit.AddCommitStr(command.FetchBranchLogFileAddr(), "commit")
+		}
 		commit.UpdateCommitHash(command.FetchBranchHeadFileAddr())
 
 	case "branch":
+		if cmd.IsInitialCommit {
+			helper.PrintOutput(command.CurrentBranchName())
+			return
+		}
 		files := command.ListAllBranch()
 		if len(cmd.Options) == 0 && len(cmd.Arguments) == 0 {
 			current := command.CurrentBranchName()
@@ -265,11 +288,29 @@ func main() {
 				// case "-D":
 			}
 		}
+		if len(cmd.Options) == 1 && len(cmd.Arguments) == 2 {
+			switch cmd.Options[0] {
+			case "-m":
+				command.RenameBranch(cmd.Arguments[0], cmd.Arguments[1])
+				// case "-d":
+				// case "-D":
+			}
+		}
 	case "checkout":
+		if cmd.IsInitialCommit {
+			if len(cmd.Arguments) == 1 {
+				command.UpdateRefPath(fmt.Sprintf("refs/heads/%s", cmd.Arguments[0]))
+				return
+			}
+		}
 		if len(command.StatusFunc(ActiveFiles)) > 0 {
 			helper.PrintInfo("Changes in working directory are not commited yet")
 		}
+
 		if len(cmd.Options) == 0 && len(cmd.Arguments) == 1 {
+			if ok := command.CheckExistingBranch(cmd.Arguments[0]); !ok {
+				helper.PrintInfo("Incorect branch name")
+			}
 			hash := command.SwitchBranch(cmd.Arguments[0])
 			command.ReplaceCommitContent(hash)
 		}
@@ -282,17 +323,43 @@ func main() {
 				command.ReplaceCommitContent(hash)
 			}
 		}
-
+	case "log":
+		if cmd.IsInitialCommit {
+			return
+		}
+		commits := command.FetchCurrentBranchLogs()
+		fmt.Println("length ", len(commits))
+		if len(cmd.Options) == 1 && cmd.Options[0] == "--oneline" {
+			for i, commit := range commits {
+				if i == 0 {
+					helper.PrintInfo(fmt.Sprintf("commit %s (HEAD -> %s) - ", commit.CurrentCommitHash[0:7], command.CurrentBranchName()))
+				} else {
+					helper.PrintInfo(fmt.Sprintf("commit %s ", commit.CurrentCommitHash[0:7]))
+				}
+				helper.Print(fmt.Sprintf("%v", commit.CommitMsg))
+			}
+		} else {
+			for i, commit := range commits {
+				t := time.Unix(commit.Timestamp, 0)
+				if i == 0 {
+					helper.PrintInfo(fmt.Sprintf("commit %s (HEAD -> %s)", commit.CurrentCommitHash, command.CurrentBranchName()))
+				} else {
+					helper.PrintInfo(fmt.Sprintf("commit %s", commit.CurrentCommitHash))
+				}
+				helper.Print(fmt.Sprintf("Author: %s <%s>\nDate: %v %v\n\n    %s\n", commit.AuthorName, commit.AuthorEmail, t.Format(time.RFC1123), commit.TimeZone, commit.CommitMsg))
+			}
+		}
 	default:
 		helper.PrintError("Invalid command.")
 	}
 }
 
 type Command struct {
-	Name      string
-	Length    int
-	Options   []string
-	Arguments []string
+	Name            string
+	Length          int
+	Options         []string
+	Arguments       []string
+	IsInitialCommit bool
 }
 
 func ParseCommand(args []string) (Command, error) {
@@ -300,6 +367,7 @@ func ParseCommand(args []string) (Command, error) {
 	cmd.Length = len(args)
 	cmd.Options = []string{}
 	cmd.Arguments = []string{}
+	cmd.IsInitialCommit = false
 
 	if len(args) < 2 {
 		return Command{}, fmt.Errorf("No command provided. Use 'govcs <command> [options] [arguments]'.")
@@ -311,6 +379,11 @@ func ParseCommand(args []string) (Command, error) {
 		_, err := os.Stat(".go-vcs")
 		if errors.Is(err, os.ErrNotExist) {
 			helper.PrintError("Failed to find .go-vcs directory, Repository not availables")
+		}
+
+		_, err = os.Stat(".go-vcs/logs/HEAD")
+		if errors.Is(err, os.ErrNotExist) {
+			cmd.IsInitialCommit = true
 		}
 	}
 

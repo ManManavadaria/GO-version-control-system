@@ -48,13 +48,12 @@ func WriteHeadData(treeFiles []TreeDataStruct) {
 		if err != nil {
 			panic(err)
 		}
+		defer f.Close()
 
 		f.Truncate(0)
 
 		if _, err := f.WriteString(content); err != nil {
 			fmt.Println("err ", err)
 		}
-
-		f.Close()
 	}
 }

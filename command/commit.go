@@ -76,7 +76,7 @@ func (c *CommitConfig) GenerateCommitObjectContent() []byte {
 
 func (c *CommitConfig) AddCommitStrInHead() {
 
-	commitStr := fmt.Sprintf("%s %s %s <%s> %d %s    %s\n", c.ParentCommitHash, c.CurrentCommitHash, c.AuthorName, c.AuthorEmail, c.Timestamp, c.TimeZone, fmt.Sprintf("commit: %s", c.CommitMsg))
+	commitStr := fmt.Sprintf("%s %s %s <%s> %d %s %s\n", c.ParentCommitHash, c.CurrentCommitHash, c.AuthorName, c.AuthorEmail, c.Timestamp, c.TimeZone, fmt.Sprintf("commit: %s", c.CommitMsg))
 
 	file, err := os.OpenFile(".go-vcs/logs/HEAD", os.O_APPEND|os.O_WRONLY, 0666)
 	if err != nil {

@@ -54,7 +54,7 @@ func (idx *Index) IndexHashCompare(activeFiles []string) []FileStatusStruct {
 			}
 			delete(indexFileMap, path)
 		} else {
-			fileTrack = append(fileTrack, FileStatusStruct{Filename: path, Status: "new file", BlobHash: ""})
+			fileTrack = append(fileTrack, FileStatusStruct{Filename: path, Status: "new file", BlobHash: currentHash})
 			// fmt.Printf("New file: %s\n", path)
 		}
 	}
@@ -76,6 +76,9 @@ func StagedFiles() ([]TreeDataStruct, bool) {
 		return []TreeDataStruct{}, false
 	}
 
+	index := LoadIndex()
+
+	// if !initialCommit {
 	treeData, err := LsTreeFuncAllFilesSearch(hash)
 	if err != nil {
 		helper.PrintError(err.Error())
@@ -86,8 +89,6 @@ func StagedFiles() ([]TreeDataStruct, bool) {
 	for _, file := range treeData {
 		treeMap[file.Filename] = file
 	}
-
-	index := LoadIndex()
 
 	for _, entry := range index.Entries {
 		file, ok := treeMap[entry.Path]
