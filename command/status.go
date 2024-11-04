@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"sync"
 
 	"github.com/ManManavadaria/GO-version-control-system/helper"
 )
@@ -33,36 +34,52 @@ func (idx *Index) IndexHashCompare(activeFiles []string) []FileStatusStruct {
 		indexFileMap[entry.Path] = entry
 	}
 
+	var mu sync.RWMutex
+	var wg sync.WaitGroup
+	resultsChan := make(chan FileStatusStruct, len(activeFiles))
+
 	for _, path := range activeFiles {
-		// if info.IsDir() {
-		// 	continue
-		// }
+		wg.Add(1)
+		go func(path string) {
+			defer wg.Done()
 
-		// relativePath := strings.TrimPrefix(path, workingDir+"/")
-		entry, existsInIndex := indexFileMap[path]
-
-		//NOTE: implement a create hash only function to avaoid using RemoveFile funtion
-		currentHash, err := GenerateBlobHash(path)
-		if err != nil {
-			fmt.Println("err HashObjectFunc", err)
-		}
-
-		if existsInIndex {
-			if fmt.Sprintf("%x", entry.Sha1) != currentHash {
-				fileTrack = append(fileTrack, FileStatusStruct{Filename: path, Status: "modified", BlobHash: fmt.Sprintf("%x", entry.Sha1)})
-				// fmt.Printf("Modified: %s\n", path)
+			mu.RLock()
+			entry, existsInIndex := indexFileMap[path]
+			mu.RUnlock()
+			currentHash, err := GenerateBlobHash(path)
+			if err != nil {
+				fmt.Println("Error generating hash for", path, ":", err)
+				return
 			}
-			delete(indexFileMap, path)
-		} else {
-			fileTrack = append(fileTrack, FileStatusStruct{Filename: path, Status: "new file", BlobHash: currentHash})
-			// fmt.Printf("New file: %s\n", path)
+
+			var fileStatus FileStatusStruct
+			if existsInIndex {
+				if fmt.Sprintf("%x", entry.Sha1) != currentHash {
+					fileStatus = FileStatusStruct{Filename: path, Status: "modified", BlobHash: fmt.Sprintf("%x", entry.Sha1)}
+				}
+				mu.Lock()
+				delete(indexFileMap, path)
+				mu.Unlock()
+			} else {
+				fileStatus = FileStatusStruct{Filename: path, Status: "new file", BlobHash: currentHash}
+			}
+			resultsChan <- fileStatus
+		}(path)
+	}
+
+	go func() {
+		wg.Wait()
+		close(resultsChan)
+	}()
+
+	for result := range resultsChan {
+		if result.Status != "" {
+			fileTrack = append(fileTrack, result)
 		}
 	}
 
-	if len(indexFileMap) > 0 {
-		for path := range indexFileMap {
-			fileTrack = append(fileTrack, FileStatusStruct{Filename: path, Status: "removed", BlobHash: ""})
-		}
+	for path := range indexFileMap {
+		fileTrack = append(fileTrack, FileStatusStruct{Filename: path, Status: "removed", BlobHash: ""})
 	}
 
 	return fileTrack

@@ -204,7 +204,7 @@ func main() {
 			helper.PrintError("Invalid arguments.")
 		}
 
-		var commit command.CommitConfig
+		commit := command.NewCommitConfig()
 		if len(cmd.Options) > 0 {
 			for _, option := range cmd.Options {
 				if option == "-a" {
@@ -227,24 +227,13 @@ func main() {
 			}
 		}
 
-		//NOTE: create a initcommit function to generate a base config struct
 		commit.CurrentTreeHash = command.WriteTree()
 		if cmd.IsInitialCommit {
-			commit.ParentCommitHash = "0000000000000000000000000000000000000000"
 			command.CreateInitialBranch(command.CurrentBranchName())
 			command.CreateLogsHEAD()
 		} else {
 			commit.ParentCommitHash = command.FetchLatestCommitHash()
 		}
-
-		commit.AuthorName = "ManPatel"
-		commit.AuthorEmail = "mam@gmail.com"
-		commit.Timestamp = time.Now().Unix()
-		_, tzOffset := time.Now().Zone()
-		tzHours := tzOffset / 3600
-		tzMinutes := (tzOffset % 3600) / 60
-
-		commit.TimeZone = fmt.Sprintf("%+03d%02d", tzHours, tzMinutes)
 
 		err := commit.CreateCommitObject()
 		if err != nil {

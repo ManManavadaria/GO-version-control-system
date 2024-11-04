@@ -6,6 +6,7 @@ import (
 	"crypto/sha1"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/ManManavadaria/GO-version-control-system/helper"
 )
@@ -19,6 +20,21 @@ type CommitConfig struct {
 	AuthorEmail       string
 	Timestamp         int64
 	TimeZone          string
+}
+
+func NewCommitConfig() *CommitConfig {
+	var commit CommitConfig
+	commit.ParentCommitHash = "0000000000000000000000000000000000000000"
+	commit.AuthorName = "ManPatel"
+	commit.AuthorEmail = "mam@gmail.com"
+	commit.Timestamp = time.Now().Unix()
+	_, tzOffset := time.Now().Zone()
+	tzHours := tzOffset / 3600
+	tzMinutes := (tzOffset % 3600) / 60
+
+	commit.TimeZone = fmt.Sprintf("%+03d%02d", tzHours, tzMinutes)
+
+	return &commit
 }
 
 func (c *CommitConfig) CreateCommitObject() error {

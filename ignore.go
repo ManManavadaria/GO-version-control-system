@@ -5,7 +5,9 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
+	"sync"
 
 	"github.com/ManManavadaria/GO-version-control-system/helper"
 )
@@ -65,19 +67,35 @@ func init() {
 
 	fileNames := strings.Split(strings.TrimSpace(string(b)), "\n")
 
-	var validFileNames []string
+	var wg sync.WaitGroup
+	var validFileChan = make(chan string)
+	var inputChan = make(chan string)
 
-	for _, filename := range fileNames {
-		filename = strings.TrimSpace(filename)
+	worker := runtime.NumCPU()
 
-		if len(filename) == 0 || strings.HasPrefix(filename, "#") {
-			continue
-		}
-
-		validFileNames = append(validFileNames, filename)
+	for i := 1; i < worker; i++ {
+		wg.Add(1)
+		go func(outChan chan string, inChan chan string) {
+			for file := range inChan {
+				file = strings.TrimSpace(file)
+				if len(file) == 0 || strings.HasPrefix(file, "#") {
+					return
+				}
+				outChan <- file
+			}
+		}(validFileChan, inputChan)
 	}
 
-	FilesToIgnore = append(FilesToIgnore, validFileNames...)
+	for _, file := range fileNames {
+		inputChan <- file
+	}
+
+	wg.Wait()
+	close(inputChan)
+
+	for file := range validFileChan {
+		FilesToIgnore = append(FilesToIgnore, file)
+	}
 
 	FilesToIgnore = append(FilesToIgnore, ".git", ".go-vcs")
 

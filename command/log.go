@@ -36,13 +36,11 @@ func FetchBranchLogs(logFilePath string) ([]CommitConfig, error) {
 
 	for _, line := range lines {
 		if strings.TrimSpace(line) == "" {
-			fmt.Println("continue empty")
 			continue
 		}
 
 		parts := strings.SplitN(line, " ", 7)
 		if len(parts) < 7 {
-			fmt.Println("continue 7")
 			continue
 		}
 
